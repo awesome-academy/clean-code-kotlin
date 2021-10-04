@@ -427,3 +427,279 @@ codebase của bạn. Nếu nó không được gọi nữa, hãy bỏ nó đi! 
 lịch sử phiên bản của bạn nếu bạn vẫn cần nó.
 
 **[⬆ Về đầu trang](#mục-lục)**
+
+## Đối tượng và cấu trúc dữ liệu
+### Sử dụng getter và setter
+Đây là một danh sách các lí do tại sao:
+
+* Khi bạn muốn thực hiện nhiều hơn việc lấy một thuộc tính của đối tượng, bạn không
+cần phải tìm kiếm và thay đổi mỗi accessor trong codebase của bạn.
+* Làm cho việc thêm các validation đơn giản khi thực hiện trên một `tập hợp`.
+* Đóng gói các biểu diễn nội bộ.
+* Dễ dàng thêm log và xử lí lỗi khi getting và setting.
+* Kế thừa lớp này, bạn có thể override những hàm mặc định.
+* Bạn có thể lazy load các thuộc tính của một đối tượng, lấy nó từ server.
+
+**[⬆ Về đầu trang](#mục-lục)**
+
+## Lớp
+### Sử dụng hàm khởi tạo (constructor) quá nhiều biến hoặc gọi nhiều hàm set liên tiếp nhau
+- Tránh sử dụng hàm constructor với nhiều hơn 3 đối số truyền vào thay vì vậy hãy áp dụng _Builder Pattern_
+
+### Ưu tiên thành phần hơn là kế thừa
+- Như đã được nhấn mạnh nhiều trong [*Design Patterns*](https://en.wikipedia.org/wiki/Design_Patterns)
+của Gang of Four, bạn nên sử dụng cấu trúc thành phần hơn là thừa kế nếu có thể.
+Có rất nhiều lý do tốt để sử dụng kế thừa cũng như sử dụng thành phần.
+Điểm nhấn cho phương châm này đó là nếu tâm trí của bạn đi theo bản năng thừa kế,
+thử nghĩ nếu thành phần có thể mô hình vấn đề của bạn tốt hơn. Trong một số trường
+hợp nó có thể.
+
+Bạn có thể tự hỏi, "khi nào tôi nên sử dụng thừa kế?" Nó phụ thuộc vào
+vấn đề trong tầm tay của bạn, nhưng đây là một danh sách manh nha khi kế thừa
+có ý nghĩa hơn thành phần:
+
+1. Kế thừa của bạn đại diện cho mỗi quan hệ "is-a" và không có mỗi quan hệ "has-a"
+(Human->Animal vs. User->UserDetails).
+2. Bạn có thể sử dụng lại code từ lớp cơ bản (Humans có thể di chuyển giống tất cả Animals).
+3. Bạn muốn làm thay đổi toàn cục đến các lớp dẫn xuất bằng cách thay đổi lớp cơ bản.
+
+**[⬆ Về đầu trang](#mục-lục)**
+
+## **SOLID**
+### Nguyên lí đơn trách nhiệm (Single Responsibility Principle)
+Như đã được nói đến trong cuốn Clean Code, "Chỉ có thể thay đổi một lớp vì một lí
+do duy nhất". Thật là hấp dẫn để nhồi nhét nhiều chức năng vào cho một lớp, giống
+như là khi bạn chỉ có thể lấy một chiếc vali cho chuyến bay vậy. Vấn đề là lớp của
+bạn sẽ không được hiểu gắn kết về mặt khái niệm của nó và sẽ có rất nhiều lí do
+để thay đổi. Việc làm giảm thiểu số lần bạn cần phải thay đổi một lớp là một việc
+quan trọng. Nó quan trọng bởi vì nếu có quá nhiều chức năng trong một lớp và bạn
+chỉ muốn thay đổi một chút xíu của lớp đó, thì có thể sẽ rất khó để hiểu được việc
+thay đổi đó sẽ ảnh hưởng đến những module khác trong codebase như thế nào.
+
+**Không tốt:**
+```kotlin
+class UserSettings(private val user: User) {
+
+  private fun verifyCredentials() {
+    // ...
+  }
+    
+  fun changeSettings(val settings: UserSettings) {
+      if (verifyCredentials()) {
+        // ...
+      }
+    }
+
+}
+```
+
+**Tốt:**
+```kotlin
+class UserAuth(private val user: User) {
+
+  fun verifyCredentials(): Boolean {
+    // ...
+  }
+}
+
+
+class UserSettings(
+    private val user: User,
+    private val auth: UserAuth(user)
+) {
+
+  fun changeSettings(settings: UserSettings) {
+    if (auth.verifyCredentials()) {
+      // ...
+    }
+  }
+}
+```
+
+**[⬆ Về đầu trang](#mục-lục)**
+
+### Nguyên lí đóng mở (Open/Closed Principle)
+Betrand Meyer đã nói "có thể thoải mái mở rộng một module, nhưng hạn chế sửa
+đổi bên trong module đó". Điều đó nghĩa là gì? Nguyên tắc này cơ bản nhấn mạnh
+rằng bạn phải cho phép người dùng thêm các chức năng mới mà không làm thay
+đổi các code đang có.
+
+**Không tốt:**
+```kotlin
+class AjaxAdapter: Adapter() {
+  
+    init {
+        name = "ajaxAdapter"
+    }
+}
+
+class NodeAdapter: Adapter() {
+    init {
+        name = "nodeAdapter"
+    }
+}
+
+class HttpRequester(private val adapter: Adapter) {
+ 
+     fun fetch(url: String) = when(adapter.name) {
+       "ajaxAdapter" -> makeAjaxCall(url)
+       "nodeAdapter" -> makeHttpCall(url)
+       else -> null
+     }
+
+    private fun makeAjaxCall(url: String): Response {
+      // request and return promise
+    }
+
+    private fun makeHttpCall(url: String): Response {
+      // request and return promise
+    }
+}
+```
+
+**Tốt:**
+```kotlin
+class AjaxAdapter: Adapter() {
+
+  init {
+     name = "ajaxAdapter"
+  }
+
+  fun request(url: String): Response {
+    // request and return promise
+  }
+}
+
+class NodeAdapter: Adapter() {
+  
+    init {
+        name = "nodeAdapter"
+    }
+
+    fun request(url: String): Response {
+        // request and return promise
+    }
+}
+
+class HttpRequester(private val adapter: Adapter) {
+
+  fun fetch(url: String) = adapter.request(url)
+ 
+}
+```
+
+**[⬆ Về đầu trang](#mục-lục)**
+
+### Nguyên lí thay thế Liskov (Liskov Substitution Principle)
+Đây là một thuật ngữ đáng sợ cho một khái niệm rất đơn giản. Nó được định nghĩa
+một cách chính thức là: "Nếu S là một kiểu con của T, thì các đối tượng của kiểu
+T có thể được thay thế bằng các đối tượng của kiểu S (ví dụ các đối tượng của
+kiểu S có thể thay thế các đối tượng của kiểu T) mà không làm thay đổi bất kì thuộc
+tính mong muốn nào của chương trình đó (tính chính xác, thực hiện tác vụ, ..).
+Đó thậm chí còn là một định nghĩa đáng sợ hơn.
+
+Sự giải thích tốt nhất cho nguyên lí này là, nếu bạn có một lớp cha và một lớp con,
+thì lớp cơ sở và lớp con có thể được sử dụng thay thế cho nhau mà không làm thay
+đổi tính đúng đắn của chương trình. Có thể vẫn còn hơi rối ở đây, vậy hãy xem
+cái ví dụ cổ điển hình vuông-hình chữ nhật (Square-Rectangle) dưới đây. Về mặt
+toán học, một hình vuông là một hình chữ nhật, tuy nhiên nếu bạn mô hình hoá điều
+này sử dụng quan hệ "is a" thông qua việc kế thừa, bạn sẽ nhanh chóng gặp phải
+rắc rối đấy.
+
+**Không tốt:**
+```kotlin
+class Rectangle {
+
+  private var width: Integer
+  private var height: Integer
+
+  fun setColor(color: Integer) {
+    // ...
+  }
+
+  fun render(area: Integer) {
+    // ...
+  }
+
+  fun setWidth(width: Integer) {
+    this.width = width
+  }
+
+  fun setHeight(height: Integer) {
+    this.height = height
+  }
+
+  fun getArea() = width * height
+
+}
+
+class Square: Rectangle() {
+  
+  fun setWidth(width: Integer) {
+    this.width = width
+    this.height = width
+  }
+
+  fun setHeight(height: Integer) {
+    this.width = height
+    this.height = height
+  }
+}
+
+fun renderLargeRectangles(rectangles: List<Rectangle>) {
+  rectangles.forEach{
+    it.setWidth(4)
+    it.setHeight(5)
+    val area = it.getArea()  // BAD: Will return 25 for Square. Should be 20.
+    it.render(area)
+  }
+}
+
+val rectangles = listOf(Rectangle(), Square())
+renderLargeRectangles(rectangles)
+```
+
+**Tốt:**
+```kotlin
+class Shape {
+  fun setColor(color: Integer) {
+    // ...
+  }
+
+  fun render(area: Integer) {
+    // ...
+  }
+}
+
+class Rectangle(
+    private var recWidth,
+    private var recHeight
+): Shape() {
+
+    init {
+        recWidth = width
+        recHeight = height
+    }
+
+    fun getArea() = recWidth * recHeight
+}
+
+class Square(private var squareLength): Shape() {
+    
+  init {
+      squareLength = length
+  }
+
+  fun getArea() = squareLength * squareLength
+}
+
+fun renderLargeShapes(shapes: List<Shape>) {
+  shapes.forEach {
+      val area = it.getArea()
+      it.render(area)
+  }
+}
+
+val shapes = listOf( Rectangle(4, 5),  Square(5))
+renderLargeShapes(shapes)
+```
